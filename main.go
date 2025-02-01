@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	mf "github.com/Asri-Mohamad/Master_Function"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type dataUser struct {
@@ -88,11 +89,14 @@ func loadFile(fileName string) ([]dataUser, int) {
 		for i, user := range readStruct {
 
 			if user.UserName == userName {
-				if user.Password == pass {
+
+				err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(pass))
+				if err == nil {
 					index = i
 					mach = true
 					break
 				}
+
 			}
 
 		}
@@ -181,24 +185,31 @@ func editForm() {
 
 		fmt.Print("\n Do you want save new data (y/n)?")
 		if yesOrNo() {
-			readStruct[index] = newUser
-			file, err := os.OpenFile("Userdata.json", os.O_RDWR, 0666)
+			hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newUser.Password), bcrypt.DefaultCost)
 			if err != nil {
-				fmt.Println("Open data file have problem...")
+				fmt.Println("Hash password have problem ....")
 
 			} else {
-				defer file.Close()
-				file.Truncate(0)
-				file.Seek(0, 0)
-				encode := json.NewEncoder(file)
-				err = encode.Encode(readStruct)
+				newUser.Password = string(hashedPassword)
+				readStruct[index] = newUser
+				file, err := os.OpenFile("Userdata.json", os.O_RDWR, 0666)
 				if err != nil {
-					fmt.Println("problem to save data ....")
+					fmt.Println("Open data file have problem...")
 
 				} else {
-					fmt.Printf("Yes\n Data Saveing ....")
-				}
+					defer file.Close()
+					file.Truncate(0)
+					file.Seek(0, 0)
+					encode := json.NewEncoder(file)
+					err = encode.Encode(readStruct)
+					if err != nil {
+						fmt.Println("problem to save data ....")
 
+					} else {
+						fmt.Printf("Yes\n Data Saveing ....")
+					}
+
+				}
 			}
 
 		} else {
@@ -262,7 +273,14 @@ func registerForm() {
 	fmt.Printf("This user was create:\n	Name:%s\n	Family:%s\n	Username:%s\n	Password:%s\n Are you shor to save this data(Y/N)?",
 		newUser.Name, newUser.Family, newUser.UserName, newUser.Password)
 	if yesOrNo() {
-		savedata(newUser)
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newUser.Password), bcrypt.DefaultCost)
+		if err != nil {
+			fmt.Println("Hash password have problem ....")
+
+		} else {
+			newUser.Password = string(hashedPassword)
+			savedata(newUser)
+		}
 
 	} else {
 		fmt.Println("No")
